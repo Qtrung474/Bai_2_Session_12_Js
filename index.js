@@ -1,157 +1,243 @@
-// solution_ex7.js
-const readlineSync = require("readline-sync");
-
-// 1. Dữ liệu cấu hình gói cước
-const PLAN_CONFIG = {
-  PERSONAL: { name: "PERSONAL", deviceLimit: 1, price: 59000 },
-  FAMILY: { name: "FAMILY", deviceLimit: 4, price: 149000 }
-};
-
-// 2. Khởi tạo mảng subscriptions mẫu
-let subscriptions = [
-  { id: "SUB_001", customerName: "Nguyen Van A", plan: "PERSONAL", deviceLimit: 1, price: 59000, status: "ACTIVE" },
-  { id: "SUB_002", customerName: "Tran Thi B", plan: "FAMILY", deviceLimit: 4, price: 149000, status: "ACTIVE" },
-  { id: "SUB_003", customerName: "Le Van C", plan: "PERSONAL", deviceLimit: 1, price: 59000, status: "ACTIVE" }
+const passengers = [
+    {
+        pnrCode: "VN7891",
+        passengerName: "NGUYEN VAN AN",
+        idNumber: "001200012345",
+        flightNumber: "VN220",
+        seatNumber: "12A",
+        isCheckedIn: true
+    },
+    {
+        pnrCode: "VN7892",
+        passengerName: "TRAN THI MAI",
+        idNumber: "B1234567",
+        flightNumber: "VN220",
+        seatNumber: "12B",
+        isCheckedIn: true
+    },
+    {
+        pnrCode: "VN7893",
+        passengerName: "LE QUANG DUC",
+        idNumber: "038095009876",
+        flightNumber: "VN220",
+        seatNumber: "",
+        isCheckedIn: false
+    },
+    {
+        pnrCode: "VN7894",
+        passengerName: "PHAM HOANG LONG",
+        idNumber: "C98765432",
+        flightNumber: "VJ152",
+        seatNumber: "",
+        isCheckedIn: false
+    }
 ];
 
-let nextIdCounter = 4;
+const AVAILABLE_SEATS = [
+    "12A", "12B", "12C", "12D",
+    "14A", "14B", "14C", "14D",
+    "15A", "15B", "15C", "15D",
+    "16A", "16B", "16C", "16D"
+];
 
-// 3. Hàm tiện ích sinh mã thuê bao tự động
-function generateSubscriptionId() {
-  const paddedId = String(nextIdCounter++).padStart(3, "0");
-  return `SUB_${paddedId}`;
+function validateIdentity(idNumber) {
+    if (typeof idNumber !== "string") return false;
+    const cleanId = idNumber.trim().toUpperCase();
+    const cccdRegex = /^\d{12}$/;
+    const passportRegex = /^[A-Z]\d{7,8}$/;
+    return cccdRegex.test(cleanId) || passportRegex.test(cleanId);
 }
 
-// 4. Hàm hiển thị danh sách (Read)
-function listSubscriptions() {
-  console.log("\n=================== DANH SÁCH THUÊ BAO RIKKEISTREAM ===================");
-  if (subscriptions.length === 0) {
-    console.log("Hiện tại không có thuê bao nào trong hệ thống.");
-    return;
-  }
-  console.table(subscriptions);
+function findPassengerByPnr(pnrCode) {
+    if (!pnrCode || typeof pnrCode !== "string") return null;
+    const cleanPnr = pnrCode.trim().toUpperCase();
+    return passengers.find(p => p.pnrCode.toUpperCase() === cleanPnr) || null;
 }
 
-// 5. Hàm thêm mới thuê bao (Create)
-function addSubscription() {
-  console.log("\n--- THÊM MỚI THUÊ BAO ---");
-  const customerName = readlineSync.question("Nhập tên khách hàng: ").trim();
-  if (!customerName) {
-    console.log("Lỗi: Tên khách hàng không được để trống!");
-    return;
-  }
+function allocateSeat(flightNumber) {
+    const occupiedSeats = passengers
+        .filter(p => p.flightNumber.toUpperCase() === flightNumber.toUpperCase() && p.seatNumber)
+        .map(p => p.seatNumber.toUpperCase());
 
-  const plans = ["PERSONAL", "FAMILY"];
-  const planIndex = readlineSync.keyInSelect(plans, "Chọn gói cước:", { cancel: false });
-  const selectedPlanKey = plans[planIndex];
-  const planDetails = PLAN_CONFIG[selectedPlanKey];
-
-  const newSub = {
-    id: generateSubscriptionId(),
-    customerName,
-    plan: planDetails.name,
-    deviceLimit: planDetails.deviceLimit,
-    price: planDetails.price,
-    status: "ACTIVE"
-  };
-
-  subscriptions.push(newSub);
-  console.log(`Thêm thành công thuê bao [${newSub.id}] cho khách hàng "${customerName}".`);
+    for (const seat of AVAILABLE_SEATS) {
+        if (!occupiedSeats.includes(seat.toUpperCase())) {
+            return seat;
+        }
+    }
+    return null;
 }
 
-// 6. Hàm cập nhật gói cước (Update)
-function updateSubscription() {
-  console.log("\n--- CẬP NHẬT GÓI CƯỚC THUÊ BAO ---");
-  const targetId = readlineSync.question("Nhập mã thuê bao cần cập nhật (VD: SUB_001): ").trim().toUpperCase();
+function printBoardingPass(passenger) {
+    const pnr = passenger.pnrCode.padEnd(10);
+    const name = passenger.passengerName.padEnd(26);
+    const flight = passenger.flightNumber.padEnd(8);
+    const seat = passenger.seatNumber.padEnd(6);
+    const id = passenger.idNumber.padEnd(16);
 
-  const sub = subscriptions.find(item => item.id === targetId);
-  if (!sub) {
-    console.log(`Lỗi: Không tìm thấy thuê bao có mã [${targetId}].`);
-    return;
-  }
-
-  console.log(`Thông tin hiện tại: ${sub.customerName} | Gói: ${sub.plan} | Thiết bị tối đa: ${sub.deviceLimit}`);
-  const plans = ["PERSONAL", "FAMILY"];
-  const planIndex = readlineSync.keyInSelect(plans, "Chọn gói cước mới:", { cancel: "Hủy bỏ cập nhật" });
-
-  if (planIndex === -1) {
-    console.log("Đã hủy thao tác cập nhật.");
-    return;
-  }
-
-  const newPlanKey = plans[planIndex];
-  const newPlanDetails = PLAN_CONFIG[newPlanKey];
-
-  sub.plan = newPlanDetails.name;
-  sub.deviceLimit = newPlanDetails.deviceLimit;
-  sub.price = newPlanDetails.price;
-
-  console.log(`Cập nhật thành công thuê bao [${sub.id}] sang gói [${sub.plan}].`);
+    console.log("==================================================================");
+    console.log("                      BOARDING PASS / THẺ LÊN TÀU BAY             ");
+    console.log("==================================================================");
+    console.log(` PASSENGER : ${name} PNR   : ${pnr}`);
+    console.log(` FLIGHT    : ${flight} SEAT  : ${seat}`);
+    console.log(` ID NUMBER : ${id} GATE  : 04 (T1) `);
+    console.log("------------------------------------------------------------------");
+    console.log(" BARCODE: ||||| | |||| || ||||| ||| || |||||| || ||||| ||| |||||||");
+    console.log(`          *${passenger.pnrCode}*${passenger.seatNumber}*                 `);
+    console.log("==================================================================");
 }
 
-// 7. Hàm hủy/xóa thuê bao (Delete)
-function deleteSubscription() {
-  console.log("\n--- HỦY/XÓA THUÊ BAO ---");
-  const targetId = readlineSync.question("Nhập mã thuê bao cần hủy (VD: SUB_001): ").trim().toUpperCase();
-
-  const index = subscriptions.findIndex(item => item.id === targetId);
-  if (index === -1) {
-    console.log(`Lỗi: Không tìm thấy thuê bao có mã [${targetId}].`);
-    return;
-  }
-
-  const isConfirmed = readlineSync.keyInYNStrict(`Bạn có chắc chắn muốn hủy thuê bao [${targetId}] của ${subscriptions[index].customerName}?`);
-  if (!isConfirmed) {
-    console.log("Đã hủy thao tác xóa.");
-    return;
-  }
-
-  const removed = subscriptions.splice(index, 1);
-  console.log(`Đã hủy và xóa thành công thuê bao [${removed[0].id}].`);
+function displayPassengerRecords() {
+    console.log("\n--- HỒ SƠ HÀNH KHÁCH & TÌNH TRẠNG CHUYẾN BAY ---");
+    const formattedList = passengers.map(p => ({
+        "Mã PNR": p.pnrCode,
+        "Họ và Tên": p.passengerName,
+        "Số CCCD / Hộ chiếu": p.idNumber,
+        "Chuyến bay": p.flightNumber,
+        "Số ghế": p.seatNumber || "(Chưa cấp)",
+        "Đã Check-in": p.isCheckedIn ? "YES" : "NO"
+    }));
+    console.table(formattedList);
 }
 
-// 8. Hàm hiển thị menu và điều hướng luồng chính
+function registerPassenger() {
+    const pnrCode = prompt("Nhập mã PNR mới (ví dụ: VN9901):");
+    if (!pnrCode || !pnrCode.trim()) {
+        alert("Lỗi: Mã PNR không được để trống!");
+        return;
+    }
+
+    if (findPassengerByPnr(pnrCode)) {
+        alert("Lỗi: Mã PNR đã tồn tại trong hệ thống!");
+        return;
+    }
+
+    const passengerName = prompt("Nhập tên hành khách (không dấu):");
+    if (!passengerName || !passengerName.trim()) {
+        alert("Lỗi: Tên hành khách không được để trống!");
+        return;
+    }
+
+    const idNumber = prompt("Nhập số CCCD (12 số) hoặc Hộ chiếu (1 chữ cái + 7-8 số):");
+    if (!idNumber || !validateIdentity(idNumber)) {
+        alert("Lỗi: Số CCCD hoặc Hộ chiếu không đúng quy chuẩn!");
+        return;
+    }
+
+    const flightNumber = prompt("Nhập mã số chuyến bay (ví dụ: VN220):");
+    if (!flightNumber || !flightNumber.trim()) {
+        alert("Lỗi: Mã chuyến bay không được để trống!");
+        return;
+    }
+
+    const newPassenger = {
+        pnrCode: pnrCode.trim().toUpperCase(),
+        passengerName: passengerName.trim().toUpperCase(),
+        idNumber: idNumber.trim().toUpperCase(),
+        flightNumber: flightNumber.trim().toUpperCase(),
+        seatNumber: "",
+        isCheckedIn: false
+    };
+
+    passengers.push(newPassenger);
+    alert(`Đã tiếp nhận hồ sơ thành công cho hành khách ${newPassenger.passengerName}!`);
+}
+
+function processSecurityCheckIn() {
+    const pnrInput = prompt("Nhập mã PNR để kiểm tra hồ sơ và làm thủ tục check-in:");
+    if (!pnrInput || !pnrInput.trim()) {
+        alert("Lỗi: Mã PNR không được để trống!");
+        return;
+    }
+
+    const passenger = findPassengerByPnr(pnrInput);
+    if (!passenger) {
+        alert(`Lỗi: Không tìm thấy hồ sơ hành khách với mã PNR "${pnrInput.trim().toUpperCase()}".`);
+        return;
+    }
+
+    if (passenger.isCheckedIn) {
+        alert(`Hành khách ${passenger.passengerName} đã hoàn tất check-in trước đó (Ghế: ${passenger.seatNumber}).`);
+        printBoardingPass(passenger);
+        return;
+    }
+
+    const idInput = prompt(`Xác thực giấy tờ cho khách ${passenger.passengerName}\nNhập số CCCD hoặc Hộ chiếu:`);
+    if (!idInput) {
+        alert("Quy trình check-in bị hủy.");
+        return;
+    }
+
+    if (!validateIdentity(idInput)) {
+        alert("Lỗi an ninh: Giấy tờ tùy thân không đúng định dạng chuẩn!");
+        return;
+    }
+
+    if (idInput.trim().toUpperCase() !== passenger.idNumber.toUpperCase()) {
+        alert("Cảnh báo an ninh: Số giấy tờ tùy thân KHÔNG khớp với thông tin đặt vé!");
+        return;
+    }
+
+    const assignedSeat = allocateSeat(passenger.flightNumber);
+    if (!assignedSeat) {
+        alert(`Lỗi: Chuyến bay ${passenger.flightNumber} đã hết ghế trống! Không thể hoàn tất check-in.`);
+        return;
+    }
+
+    passenger.seatNumber = assignedSeat;
+    passenger.isCheckedIn = true;
+
+    alert(`Xác thực an ninh thành công! Đã cấp phát ghế ${assignedSeat} cho hành khách.`);
+    printBoardingPass(passenger);
+}
+
 function main() {
-  let menuChoice = 0;
+    let running = true;
 
-  do {
-    console.log("\n==============================================");
-    console.log("       HỆ THỐNG QUẢN LÝ THUÊ BAO RIKKEISTREAM  ");
-    console.log("==============================================");
-    console.log("1. Thêm thuê bao mới");
-    console.log("2. Xem toàn bộ danh sách thuê bao");
-    console.log("3. Cập nhật gói cước");
-    console.log("4. Hủy thuê bao");
-    console.log("5. Thoát chương trình");
-    console.log("----------------------------------------------");
+    do {
+        const menu = 
+            "====================================================\n" +
+            "  HỆ THỐNG QUẢN LÝ HỒ SƠ HÀNH KHÁCH & CHECK-IN SÂN BAY\n" +
+            "====================================================\n" +
+            "1. Xem danh sách hồ sơ hành khách\n" +
+            "2. Tiếp nhận hồ sơ hành khách mới\n" +
+            "3. Xác thực an ninh, cấp ghế & In thẻ lên tàu\n" +
+            "4. Thoát hệ thống\n" +
+            "----------------------------------------------------\n" +
+            "Nhập lựa chọn của bạn (1-4):";
 
-    menuChoice = readlineSync.questionInt("Nhập lựa chọn của bạn (1-5): ");
+        const choice = prompt(menu);
 
-    switch (menuChoice) {
-      case 1:
-        addSubscription();
-        break;
-      case 2:
-        listSubscriptions();
-        break;
-      case 3:
-        updateSubscription();
-        break;
-      case 4:
-        deleteSubscription();
-        break;
-      case 5:
-        console.log("\nĐang đóng phiên làm việc... Cảm ơn bạn đã sử dụng RikkeiStream CLI!");
-        break;
-      default:
-        console.log("Lựa chọn không hợp lệ. Vui lòng nhập số từ 1 đến 5.");
-        break;
-    }
+        if (choice === null) {
+            const confirmExit = confirm("Bạn có chắc chắn muốn đóng phiên làm việc?");
+            if (confirmExit) {
+                running = false;
+                break;
+            } else {
+                continue;
+            }
+        }
 
-    if (menuChoice !== 5) {
-      readlineSync.question("\nNhấn Enter để quay lại Menu chính...");
-    }
-  } while (menuChoice !== 5);
+        switch (choice.trim()) {
+            case "1":
+                displayPassengerRecords();
+                break;
+            case "2":
+                registerPassenger();
+                break;
+            case "3":
+                processSecurityCheckIn();
+                break;
+            case "4":
+                alert("Đang đóng phiên làm việc. Hệ thống dừng hoạt động.");
+                running = false;
+                break;
+            default:
+                alert("Lựa chọn không hợp lệ! Vui lòng chọn từ 1 đến 4.");
+                break;
+        }
+    } while (running);
+
+    console.log("Phiên làm việc đã kết thúc.");
 }
 
 main();
